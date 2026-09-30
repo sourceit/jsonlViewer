@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "JsonlViewer",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js", "--no-open", "--port", "4717"],
+      "port": 4717
+    }
+  ]
+}
