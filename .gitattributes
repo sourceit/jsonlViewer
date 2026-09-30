@@ -1,0 +1,10 @@
+# Line endings for this repository, whatever each clone's core.autocrlf says.
+# Stored as LF; checked out as LF, so the files match what Node and the browser read.
+* text=auto eol=lf
+
+# cmd.exe misreads batch files with bare LF (labels and multi-line blocks), so the launcher checks out as CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Pinned third-party files: kept byte for byte.
+public/vendor/*.js -text
