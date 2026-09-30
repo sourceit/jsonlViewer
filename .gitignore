@@ -1,0 +1,6 @@
+# Your stars and bookmarks, written by server.js (and its temporary file mid-save)
+bookmarks.json
+bookmarks.json.tmp
+
+# Snapshots left by playwright-cli when checking the page
+.playwright-cli/

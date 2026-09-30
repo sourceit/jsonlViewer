@@ -1,0 +1,1036 @@
+<meta charset="utf-8">
+<title>JsonlViewer</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<script src="vendor/marked.min.js"></script>
+<script src="vendor/purify.min.js"></script>
+<style>
+:root {
+  --ground: #f3f5f8; --panel: #ffffff; --panel-2: #eaeef4; --line: #d6dce6;
+  --ink: #1b2230; --ink-2: #4a5566; --ink-3: #7a8596;
+  --user: #1f5fd6; --user-bg: #e8f0ff;
+  --tool: #6b5ca5; --tool-bg: #f1eefa;
+  --result-bg: #f5f7fa;
+  --think: #8a6a3c; --think-bg: #faf5ec;
+  --compact: #b66a00; --compact-bg: #fff4e0;
+  --error: #b3261e; --ok: #2e7d4f;
+  --focus: #1f5fd6;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --cond: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
+  --mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #12161d; --panel: #1a2029; --panel-2: #222a35; --line: #2f3845;
+    --ink: #e4e9f1; --ink-2: #b3bdcb; --ink-3: #8390a2;
+    --user: #7fa8ff; --user-bg: #1b2a47;
+    --tool: #b3a6e8; --tool-bg: #262238;
+    --result-bg: #161b23;
+    --think: #d9b98a; --think-bg: #2a2419;
+    --compact: #f0a93c; --compact-bg: #33270f;
+    --error: #ff8a80; --ok: #7cd3a0; --focus: #7fa8ff;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #12161d; --panel: #1a2029; --panel-2: #222a35; --line: #2f3845;
+  --ink: #e4e9f1; --ink-2: #b3bdcb; --ink-3: #8390a2;
+  --user: #7fa8ff; --user-bg: #1b2a47;
+  --tool: #b3a6e8; --tool-bg: #262238;
+  --result-bg: #161b23;
+  --think: #d9b98a; --think-bg: #2a2419;
+  --compact: #f0a93c; --compact-bg: #33270f;
+  --error: #ff8a80; --ok: #7cd3a0; --focus: #7fa8ff;
+}
+html, body { height: 100%; }
+body { background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); }
+.app { height: 100%; display: grid; grid-template-rows: auto auto 1fr; padding-inline: 16px; gap: 12px; box-sizing: border-box; padding-block: 12px; }
+h1, h2 { font-family: var(--cond); font-weight: 600; text-wrap: balance; margin: 0; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* top bar */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand h1 { font-size: 22px; letter-spacing: 0.01em; }
+.brand .src { color: var(--ink-3); font-size: 13px; overflow-wrap: anywhere; }
+.load { display: flex; gap: 8px; align-items: center; margin-left: auto; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--ink-3); }
+.btn.primary { background: var(--user); border-color: var(--user); color: #fff; }
+:root[data-theme="dark"] .btn.primary, :root:not([data-theme="light"]) .btn.primary { color: #fff; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.chip { background: var(--panel-2); border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+.chip b { color: var(--ink); font-weight: 600; }
+.example { background: var(--compact-bg); color: var(--compact); font-weight: 600; }
+
+/* session picker */
+.picker { border: 1px solid var(--line); border-radius: 12px; padding: 0; width: min(920px, calc(100vw - 32px)); max-height: min(80vh, 900px); background: var(--panel); color: var(--ink); box-shadow: 0 20px 60px rgb(0 0 0 / 0.25); }
+.picker::backdrop { background: rgb(10 14 20 / 0.45); }
+.picker-in { display: grid; grid-template-rows: auto auto 1fr; max-height: min(80vh, 900px); }
+.picker-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px 8px; }
+.picker-head h2 { font-size: 18px; }
+.picker-head .root { color: var(--ink-3); font: 12px var(--mono); overflow-wrap: anywhere; }
+.picker-head .x { margin-left: auto; }
+.picker-tools { display: flex; gap: 8px; padding: 0 16px 10px; flex-wrap: wrap; }
+.picker-tools input[type=search] { flex: 1 1 260px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: var(--ground); }
+.picker-tools select { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--ground); max-width: 100%; }
+.sessions { overflow-y: auto; border-top: 1px solid var(--line); padding: 6px 8px 10px; display: grid; gap: 2px; align-content: start; }
+.sess { display: grid; gap: 2px; text-align: left; border: 0; background: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+.sess:hover, .sess:focus-visible { background: var(--panel-2); }
+.sess.current { background: var(--user-bg); }
+.sess .first { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sess .meta { color: var(--ink-3); font-size: 12px; display: flex; flex-wrap: wrap; gap: 4px 12px; font-variant-numeric: tabular-nums; }
+.sess .meta .where { font-family: var(--mono); }
+.sess:disabled { cursor: default; opacity: 0.6; }
+.sess:disabled:hover { background: none; }
+/* recent files */
+.recent-row { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 4px; }
+.recent-row .rm { border: 0; background: none; color: var(--ink-3); cursor: pointer; font-size: 18px; line-height: 1; padding: 8px 10px; border-radius: 8px; }
+.recent-row .rm:hover, .recent-row .rm:focus-visible { background: var(--panel-2); color: var(--ink); }
+.sess .meta .gone { color: var(--error); }
+.sessions .empty { color: var(--ink-3); padding: 16px 10px; }
+
+/* controls */
+.controls { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.play { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--user); color: #fff; cursor: pointer; font-size: 16px; display: grid; place-items: center; }
+.step { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 4px 10px; cursor: pointer; font-size: 13px; }
+.scrub { flex: 1 1 260px; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.scrub input { flex: 1; min-width: 0; accent-color: var(--user); }
+.pos { font: 13px var(--mono); color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.filters { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; color: var(--ink-2); }
+.filters label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.speed { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.speed select { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 2px 6px; }
+.hint { font-size: 12px; color: var(--ink-3); }
+
+/* main */
+.main { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 12px; min-height: 0; }
+.rail, .stage { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; min-height: 0; display: flex; flex-direction: column; }
+.rail-head { padding: 10px; border-bottom: 1px solid var(--line); display: grid; gap: 6px; }
+.rail-head input { border: 1px solid var(--line); background: var(--ground); border-radius: 8px; padding: 6px 10px; width: 100%; box-sizing: border-box; }
+.rail-head .count { font-size: 12px; color: var(--ink-3); }
+.turns { overflow-y: auto; flex: 1; padding: 4px; }
+.turn { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; padding: 7px 8px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+.turn:hover { background: var(--panel-2); }
+.turn.on { background: var(--user-bg); border-color: var(--user); }
+.turn .n { font: 12px var(--mono); color: var(--ink-3); grid-row: span 2; padding-top: 2px; font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
+.turn .p { font-size: 13px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.turn .t { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.turn .t .mid { color: var(--user); }
+.turn.compact-before { border-top: 2px solid var(--compact); border-top-left-radius: 0; border-top-right-radius: 0; }
+.turn { grid-template-columns: auto 1fr auto; }
+.turn .p, .turn .t { grid-column: 2; }
+.turn .star { grid-column: 3; grid-row: 1 / span 2; align-self: start; border: none; background: none; color: var(--ink-3); cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 2px 2px 6px; opacity: 0; }
+.turn:hover .star, .turn .star.on, .turn .star:focus-visible { opacity: 1; }
+.turn .star.on { color: var(--compact); }
+.turn .t .marks { color: var(--compact); }
+/* Bookmarked steps */
+.ev .mark { margin-left: auto; border: none; background: none; color: var(--ink-3); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; opacity: 0; font-style: normal; }
+.ev:hover .mark, .ev .mark.on, .ev .mark:focus-visible { opacity: 1; }
+.ev .mark.on { color: var(--compact); }
+.ev.marked { box-shadow: inset 3px 0 0 var(--compact); }
+.step.on { color: var(--compact); border-color: var(--compact); }
+.step:disabled { opacity: 0.45; cursor: default; }
+.turn.routine { opacity: 0.55; }
+.turn.routine:hover, .turn.routine.on { opacity: 1; }
+.turn.sig .p { font-weight: 600; color: var(--ink); }
+.turn.sig { box-shadow: inset 3px 0 0 var(--sig); }
+.turn.sig-rule { --sig: var(--compact); }
+.turn.sig-brief { --sig: var(--user); }
+.turn.sig-direction { --sig: var(--tool); }
+.turn.sig-decision { --sig: var(--ok); }
+.tag.decision { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+.turn.sig-star { --sig: var(--compact); }
+.tag { font: 600 10px var(--cond); letter-spacing: 0.06em; text-transform: uppercase; border-radius: 4px; padding: 0 5px; margin-right: 6px; vertical-align: 1px; white-space: nowrap; }
+.tag.rule { background: var(--compact-bg); color: var(--compact); }
+.tag.brief { background: var(--user-bg); color: var(--user); }
+.tag.direction { background: var(--tool-bg); color: var(--tool); }
+.tag.heavy { background: var(--panel-2); color: var(--ink-2); }
+.rail-opts { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--ink-2); }
+.rail-opts label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.stage-head { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+.stage-head h2 { font-size: 18px; }
+.stage-head .meta { font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.feed { overflow-y: auto; flex: 1; padding: 14px 16px 40px; display: grid; gap: 10px; align-content: start; }
+.ev { border-radius: 10px; padding: 10px 12px; max-width: 900px; min-width: 0; overflow-wrap: anywhere; }
+.ev .who { font: 600 11px var(--cond); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; display: flex; gap: 8px; align-items: baseline; }
+.ev .who time { font: 11px var(--mono); letter-spacing: 0; text-transform: none; color: var(--ink-3); font-weight: 400; }
+.ev.prompt { background: var(--user-bg); border: 1px solid color-mix(in srgb, var(--user) 35%, transparent); }
+.ev.prompt .who { color: var(--user); }
+.body:not(.md) { white-space: pre-wrap; }
+.ev.reply { background: var(--panel); border: 1px solid var(--line); }
+.ev.reply .who { color: var(--ink-2); }
+.ev.think { background: var(--think-bg); color: var(--ink-2); font-style: italic; }
+.ev.think .who { color: var(--think); font-style: normal; }
+.ev.think .body { font-size: 14px; }
+.ev.tool { background: var(--tool-bg); padding: 8px 12px; }
+.ev.tool .who { color: var(--tool); margin-bottom: 2px; }
+.ev.tool pre, .ev.result pre { margin: 0; font: 12.5px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 22em; overflow: auto; }
+.ev.result { background: var(--result-bg); border: 1px dashed var(--line); padding: 8px 12px; color: var(--ink-2); }
+.ev.result .who { color: var(--ink-3); }
+.ev.result.err { border-color: var(--error); }
+.ev.result.err .who { color: var(--error); }
+.ev.marker { background: var(--compact-bg); color: var(--compact); font-size: 13px; text-align: left; }
+.ev.marker .who { color: var(--compact); }
+.ev.marker .body { max-height: 12em; overflow: auto; }
+.more { color: var(--ink-3); font-size: 12px; font-style: normal; margin-top: 4px; }
+.more button { font: inherit; color: var(--user); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.more button:hover { color: var(--ink); }
+.more button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
+.ev.expanded pre, .ev.expanded .body { max-height: none; }
+/* AskUserQuestion, as the terminal draws it */
+.ask { display: grid; gap: 12px; margin-top: 4px; }
+.ask-q { border: 1px solid color-mix(in srgb, var(--tool) 40%, transparent); background: var(--panel); border-radius: 8px; padding: 10px 12px; font-style: normal; color: var(--ink); }
+.ask-head { display: inline-block; font: 600 11px var(--cond); letter-spacing: 0.06em; text-transform: uppercase; color: var(--tool); background: var(--tool-bg); border-radius: 4px; padding: 1px 6px; margin-bottom: 6px; }
+.ask-head .multi { color: var(--ink-3); font-weight: 400; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+.ask-text { font-weight: 600; margin: 0 0 8px; }
+.ask-opts { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ask-opts li { display: grid; grid-template-columns: 1.6em 1fr; gap: 0 4px; }
+.ask-opts .num { font: 13px var(--mono); color: var(--ink-3); text-align: right; padding-right: 4px; }
+.ask-opts .lbl { font-weight: 600; }
+.ask-opts .desc { grid-column: 2; color: var(--ink-2); font-size: 13.5px; }
+.ask-opts li.other .lbl { font-weight: 400; color: var(--ink-3); font-style: italic; }
+.ask-opts li.chosen { background: color-mix(in srgb, var(--ok) 12%, transparent); border-radius: 6px; }
+.ask-opts li.chosen .lbl { color: var(--ok); }
+.ask-opts li.chosen .num::before { content: "\2713 "; color: var(--ok); }
+.answers { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 4px; font-style: normal; }
+.answers li { color: var(--ink-2); }
+.answers .arrow { color: var(--ink-3); margin: 0 6px; }
+.answers b { color: var(--ok); }
+.answers .note { display: block; color: var(--ink-3); font-size: 13px; margin-left: 1em; }
+.plan { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-top: 4px; color: var(--ink); font-style: normal; max-height: 30em; overflow: auto; }
+.ev.expanded .plan { max-height: none; }
+.ev .path { font: 12px var(--mono); color: var(--ink-2); overflow-wrap: anywhere; }
+.todos { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; font-style: normal; color: var(--ink); }
+.todos li::before { font-family: var(--mono); margin-right: 8px; color: var(--ink-3); }
+.todos li.pending::before { content: "\2610"; }
+.todos li.in_progress::before { content: "\25B6"; color: var(--tool); }
+.todos li.in_progress { font-weight: 600; }
+.todos li.completed::before { content: "\2611"; color: var(--ok); }
+.todos li.completed { color: var(--ink-3); text-decoration: line-through; }
+.body :is(p, ul, ol) { margin: 0 0 0.6em; }
+.body :is(p, ul, ol):last-child { margin-bottom: 0; }
+.body code { font: 0.9em var(--mono); background: var(--panel-2); padding: 1px 4px; border-radius: 4px; }
+.body pre { background: var(--panel-2); padding: 8px 10px; border-radius: 8px; overflow-x: auto; }
+.body pre code { background: none; padding: 0; }
+.body table { border-collapse: collapse; font-size: 13.5px; display: block; overflow-x: auto; }
+.body th, .body td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+.body h1, .body h2, .body h3 { font-family: var(--cond); font-size: 16px; margin: 0.4em 0; }
+.body a { color: var(--user); }
+.body blockquote { margin: 0 0 0.6em; padding-left: 10px; border-left: 3px solid var(--line); color: var(--ink-2); }
+.cursor-note { color: var(--ink-3); font-size: 13px; text-align: center; padding: 8px; }
+
+.progress { height: 4px; background: var(--panel-2); border-radius: 2px; overflow: hidden; }
+.progress > div { height: 100%; width: 0; background: var(--user); transition: width 0.2s; }
+.drop { position: fixed; inset: 0; background: color-mix(in srgb, var(--user) 18%, transparent); border: 3px dashed var(--user); display: grid; place-items: center; font: 600 20px var(--cond); color: var(--user); z-index: 10; }
+.drop[hidden] { display: none; }
+
+@media (max-width: 760px) {
+  .app { height: auto; grid-template-rows: auto; }
+  .main { grid-template-columns: 1fr; }
+  .rail { max-height: 40vh; }
+  .stage { min-height: 70vh; }
+  .load { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>JsonlViewer</h1>
+      <span class="src" id="src">Example session</span>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="load">
+      <input type="file" id="file" accept=".jsonl,.json,application/json" hidden>
+      <button class="btn primary" id="browse" hidden>Sessions</button>
+      <button class="btn" id="recentBtn" hidden>Recent</button>
+      <button class="btn" id="pick">Open a .jsonl file</button>
+    </div>
+  </header>
+
+  <section class="controls" aria-label="Playback">
+    <div class="progress" id="progress" hidden><div></div></div>
+    <div class="row">
+      <button class="play" id="play" aria-label="Play">&#9654;</button>
+      <button class="step" id="prevTurn" title="Previous turn (Up)">&#8676; Turn</button>
+      <button class="step" id="back" title="Step back (Left)">&#8592; Step</button>
+      <button class="step" id="fwd" title="Step forward (Right)">Step &#8594;</button>
+      <button class="step" id="endTurn" title="Last step of this turn (End)">End of turn</button>
+      <button class="step" id="nextTurn" title="Next turn (Down)">Turn &#8677;</button>
+      <button class="step" id="prevMark" title="Previous bookmark ([)">&#8592; Bookmark</button>
+      <button class="step" id="markStep" title="Bookmark this step (B)" aria-pressed="false">&#9734;</button>
+      <button class="step" id="nextMark" title="Next bookmark (])">Bookmark &#8594;</button>
+      <label class="speed">Speed
+        <select id="speed">
+          <option value="1">1 / s</option>
+          <option value="3">3 / s</option>
+          <option value="8" selected>8 / s</option>
+          <option value="25">25 / s</option>
+          <option value="100">100 / s</option>
+        </select>
+      </label>
+      <div class="scrub"><input type="range" id="scrub" min="0" max="0" value="0" aria-label="Position in session"><span class="pos" id="pos">0 / 0</span></div>
+    </div>
+    <div class="row">
+      <div class="filters" id="filters">
+        <label><input type="checkbox" data-kind="reply" checked><span class="dot" style="background:var(--ink-2)"></span>Replies</label>
+        <label><input type="checkbox" data-kind="tool" checked><span class="dot" style="background:var(--tool)"></span>Tool calls</label>
+        <label><input type="checkbox" data-kind="result"><span class="dot" style="background:var(--ink-3)"></span>Tool results</label>
+        <label><input type="checkbox" data-kind="think"><span class="dot" style="background:var(--think)"></span>Thinking</label>
+        <label><input type="checkbox" data-kind="marker" checked><span class="dot" style="background:var(--compact)"></span>Compactions and errors</label>
+      </div>
+      <span class="hint">Space plays or pauses. Arrow keys step and change turn; End jumps to the end of the turn. B bookmarks the step; [ and ] step through bookmarks and starred turns. Everything stays on this machine.</span>
+    </div>
+  </section>
+
+  <main class="main">
+    <aside class="rail" aria-label="Prompts">
+      <div class="rail-head">
+        <input type="search" id="search" placeholder="Search prompts and replies" aria-label="Search prompts and replies">
+        <div class="rail-opts">
+          <label><input type="checkbox" id="sigOnly"> Significant only</label>
+          <span class="legend"><span class="tag rule">Rule</span><span class="tag brief">Brief</span><span class="tag direction">Direction</span><span class="tag decision">Decision</span><span class="tag heavy">Heavy</span></span>
+        </div>
+        <span class="count" id="count"></span>
+      </div>
+      <div class="turns" id="turns" role="listbox" aria-label="Turns"></div>
+    </aside>
+    <section class="stage" aria-live="polite">
+      <div class="stage-head"><h2 id="turnTitle">Turn</h2><span class="meta" id="turnMeta"></span></div>
+      <div class="feed" id="feed"></div>
+    </section>
+  </main>
+</div>
+<div class="drop" id="drop" hidden>Drop the .jsonl to replay it</div>
+<dialog class="picker" id="recent" aria-labelledby="recentTitle">
+  <div class="picker-in">
+    <div class="picker-head"><h2 id="recentTitle">Recent</h2><span class="root" id="recentNote"></span><button class="btn x" id="recentClose">Close</button></div>
+    <div class="picker-tools">
+      <button class="btn primary" id="recentPick">Open a .jsonl file</button>
+      <button class="btn" id="recentClear">Clear the list</button>
+    </div>
+    <div class="sessions" id="recentList" role="list"></div>
+  </div>
+</dialog>
+<dialog class="picker" id="picker" aria-labelledby="pickerTitle">
+  <div class="picker-in">
+    <div class="picker-head"><h2 id="pickerTitle">Sessions</h2><span class="root" id="pickerRoot"></span><button class="btn x" id="pickerClose">Close</button></div>
+    <div class="picker-tools">
+      <input type="search" id="pickerSearch" placeholder="Filter by prompt, folder or branch" aria-label="Filter sessions">
+      <select id="pickerProject" aria-label="Project"><option value="">All projects</option></select>
+      <button class="btn" id="pickerRefresh">Refresh</button>
+    </div>
+    <div class="sessions" id="sessionList" role="list"></div>
+  </div>
+</dialog>
+
+<script>
+(() => {
+  const LIMITS = { tool: 1500, result: 1200, think: 3000, marker: 1500 };
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const clip = (s, n) => (s.length > n ? { text: s.slice(0, n), cut: s.length - n, full: s } : { text: s, cut: 0 });
+  // Tools whose input the terminal draws as a form rather than as JSON.
+  const DRAWN = new Set(['AskUserQuestion', 'ExitPlanMode', 'TodoWrite']);
+
+  // ---------- state ----------
+  let events = [];        // {kind, ts, text, cut, name, err, mid, turn}
+  let turns = [];         // {first, last, prompt, ts, mid, compactBefore}
+  let cursor = 0;         // index of the last shown event
+  let timer = null;
+  const visible = { reply: true, tool: true, result: false, think: false, marker: true, prompt: true, answer: true };
+  try { const saved = JSON.parse(localStorage.getItem('replay.filters') || 'null'); if (saved) Object.assign(visible, saved, { prompt: true, answer: true }); } catch (e) {}
+  try { const sp = localStorage.getItem('replay.speed'); if (sp) $('speed').value = sp; } catch (e) {}
+  document.querySelectorAll('#filters input').forEach((cb) => { cb.checked = !!visible[cb.dataset.kind]; });
+
+  // ---------- parsing ----------
+  function toolSummary(name, input) {
+    if (!input || typeof input !== 'object') return String(input ?? '');
+    const pick = input.command ?? input.file_path ?? input.pattern ?? input.url ?? input.query ?? input.skill ?? input.description ?? input.prompt ?? null;
+    if (name === 'Edit' && input.file_path) {
+      return input.file_path + '\n--- old\n' + String(input.old_string ?? '') + '\n+++ new\n' + String(input.new_string ?? '');
+    }
+    if (name === 'Write' && input.file_path) return input.file_path + '\n' + String(input.content ?? '');
+    if (pick != null && Object.keys(input).length <= 3) return typeof pick === 'string' ? pick : JSON.stringify(pick, null, 1);
+    try { return JSON.stringify(input, null, 1); } catch (e) { return String(input); }
+  }
+  function resultText(content) {
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) return content.map((b) => (b.type === 'text' ? b.text : b.type === 'image' ? '[image]' : '[' + b.type + ']')).join('\n');
+    return content == null ? '' : JSON.stringify(content);
+  }
+  // The answers to an AskUserQuestion: the structured copy when the transcript kept one, else the text the tool returned.
+  function answersOf(o, text) {
+    const r = o.toolUseResult;
+    if (r && r.answers && typeof r.answers === 'object') return { answers: r.answers, notes: r.annotations || {} };
+    const answers = {}; const re = /"([^"]*)"="([^"]*)"/g; let m;
+    while ((m = re.exec(text))) answers[m[1]] = m[2];
+    return Object.keys(answers).length ? { answers, notes: {} } : null;
+  }
+  function makeParser() {
+    const out = [];
+    const seen = new Set();
+    const toolNames = new Map();
+    const toolInputs = new Map();
+    // Each event gets an id from its line's uuid and its place in that line, so a bookmark still
+    // finds its step after the transcript has grown.
+    let lineId = '', lineN = 0;
+    const push = (e) => { e.id = lineId + '.' + lineN++; out.push(e); };
+    function line(l) {
+      if (!l || l[0] !== '{') return;
+      let o; try { o = JSON.parse(l); } catch (e) { return; }
+      if (o.uuid) { if (seen.has(o.uuid)) return; seen.add(o.uuid); }
+      const ts = o.timestamp || null;
+      lineId = o.uuid || ts || 'n' + out.length; lineN = 0;
+      if (o.type === 'attachment' && o.attachment && o.attachment.type === 'queued_command' && o.attachment.origin && o.attachment.origin.kind === 'human' && typeof o.attachment.prompt === 'string') {
+        push({ kind: 'prompt', ts, text: o.attachment.prompt, mid: true }); return;
+      }
+      if (o.type === 'system') {
+        if (o.subtype === 'compact_boundary') push({ kind: 'marker', ts, name: 'Context compacted', text: '' });
+        else if (o.subtype === 'api_error') { const c = clip(String(o.content || (o.error && o.error.message) || 'API error'), LIMITS.marker); push({ kind: 'marker', ts, name: 'API error', text: c.text, cut: c.cut, full: c.full, err: true }); }
+        return;
+      }
+      if (o.type === 'user' && !o.isMeta) {
+        const c = o.message && o.message.content;
+        const texts = typeof c === 'string' ? [c] : [];
+        if (Array.isArray(c)) {
+          for (const b of c) {
+            if (b.type === 'tool_result') {
+              const r = clip(resultText(b.content), LIMITS.result);
+              push({ kind: toolInputs.has(b.tool_use_id) ? 'answer' : 'result', ts, name: toolNames.get(b.tool_use_id) || 'result', text: r.text, cut: r.cut, full: r.full, err: !!b.is_error, asked: toolInputs.get(b.tool_use_id), answers: toolInputs.has(b.tool_use_id) ? answersOf(o, resultText(b.content)) : undefined });
+            } else if (b.type === 'text') texts.push(b.text);
+          }
+        }
+        for (const raw of texts) {
+          // Pasted text arrives wrapped in <pasted_content> tags; the tags are not part of what was typed.
+          const t = String(raw || '').replace(/<\/?pasted_content[^>]*>/g, '').trim();
+          if (!t) continue;
+          if (t.startsWith('This session is being continued')) { const m = clip(t, LIMITS.marker); push({ kind: 'marker', ts, name: 'Summary after compaction', text: m.text, cut: m.cut, full: m.full }); continue; }
+          if (t.startsWith('[Request interrupted')) { push({ kind: 'marker', ts, name: 'Interrupted', text: '' }); continue; }
+          if (t.startsWith('<') || t.startsWith('Caveat:')) continue;
+          push({ kind: 'prompt', ts, text: t, mid: false });
+        }
+        return;
+      }
+      if (o.type === 'assistant') {
+        const c = o.message && o.message.content;
+        if (!Array.isArray(c)) return;
+        for (const b of c) {
+          if (b.type === 'text' && b.text && b.text.trim()) push({ kind: 'reply', ts, text: b.text });
+          else if (b.type === 'thinking' && b.thinking && b.thinking.trim()) { const t = clip(b.thinking, LIMITS.think); push({ kind: 'think', ts, text: t.text, cut: t.cut, full: t.full }); }
+          else if (b.type === 'tool_use') {
+            toolNames.set(b.id, b.name);
+            const s = clip(toolSummary(b.name, b.input), LIMITS.tool);
+            // A markdown file written by Write is drawn formatted; its path is the summary's first line.
+            const mdFile = b.name === 'Write' && b.input && /\.(md|markdown|mdx)$/i.test(String(b.input.file_path || '')) ? b.input.file_path : undefined;
+            push({ kind: 'tool', ts, name: b.name, text: s.text, cut: s.cut, full: s.full, input: DRAWN.has(b.name) ? b.input : undefined, mdFile });
+            if (b.name === 'AskUserQuestion') toolInputs.set(b.id, b.input);
+          }
+        }
+      }
+    }
+    return { line, out };
+  }
+  function buildTurns(evs) {
+    const ts = [];
+    let pendingCompact = false;
+    evs.forEach((e, i) => {
+      if (e.kind === 'prompt' && !e.mid) {
+        ts.push({ first: i, last: i, prompt: e.text, ts: e.ts, mids: 0, compactBefore: pendingCompact });
+        pendingCompact = false;
+      } else if (!ts.length) {
+        ts.push({ first: i, last: i, prompt: '(before the first prompt)', ts: e.ts, mids: 0, compactBefore: false });
+      }
+      const t = ts[ts.length - 1];
+      t.last = i; e.turn = ts.length - 1;
+      if (e.kind === 'prompt' && e.mid) t.mids++;
+      if (e.kind === 'marker' && e.name === 'Context compacted') pendingCompact = true;
+      if (e.kind === 'tool') t.tools = (t.tools || 0) + 1;
+    });
+    classify(ts);
+    return ts;
+  }
+
+  // ---------- significance ----------
+  const ROUTINE = /^(continue|go( on)?|proceed|yes|y|no|n|ok(ay)?|thanks?( you)?|done|stop|leave it|push|commit|commit (and|&) push|commit this|logged in|chrome reconnected|try again|retry|again)[.!]?$/i;
+  const ROUTINE_ANY = /\b(has been updated|is updated|logged in|is back|reconnected)\b/i;
+  const RULE = /\b(always|never|must|from now on|do not|don't|dont|should not|shouldn't|only ever|before (migrating|you|any|each|every|committing|pushing))\b/i;
+  const DIRECTION = /^(please\s+|can you\s+|could you\s+)?(create|build|add|make|move|migrate|fix|review|remove|delete|rename|run|test|check|update|investigate|find|compare|write|put|convert|produce|use|include|define|keep|track|clone|replace|refactor|implement|design|document|summari[sz]e|explain|show|give|list|set up|setup|enable|disable|merge|split|prune|pull|do|start|open|flip|finish|restore|revert|deploy|publish)\b/i;
+  const DECISION = /^(yes|no|ok|okay|agreed?|correct)\b[,.:;]?\s+\S+(\s+\S+){1,}|\b(treat(ed)? as|go with|option \d|approach|prefer|decided?|instead of)\b/i;
+  function classify(ts) {
+    const counts = ts.map((t) => t.tools || 0).sort((a, b) => a - b);
+    const p90 = counts.length ? counts[Math.floor(counts.length * 0.9)] : 0;
+    ts.forEach((t, i) => {
+      const text = t.prompt.trim();
+      const words = text.split(/\s+/).filter(Boolean).length;
+      const lines = text.split('\n').filter((l) => l.trim()).length;
+      t.heavy = (t.tools || 0) >= Math.max(20, p90);
+      if (ROUTINE.test(text) || (words <= 6 && ROUTINE_ANY.test(text))) t.sig = 'routine';
+      else if (words >= 5 && RULE.test(text)) t.sig = 'rule';
+      else if (i === 0 || words >= 30 || lines >= 3) t.sig = 'brief';
+      else if (words >= 3 && DECISION.test(text)) t.sig = 'decision';
+      else if (words >= 3 && DIRECTION.test(text)) t.sig = 'direction';
+      else t.sig = '';
+    });
+  }
+  let fileKey = 'example';
+  let stars = new Set();
+  const starKey = (t) => t.ts || String(t.first);
+  // Bookmarked steps, by event id. A starred turn is a bookmark on the turn's first step.
+  let marks = new Set();
+  // Reads one set, folding in any saved under the older name:size keys so they are not lost.
+  function loadSet(kind) {
+    const set = new Set();
+    try {
+      const base = 'replay.' + kind + '.' + fileKey, old = [];
+      for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k === base || (k.startsWith(base + ':') && /^\d+$/.test(k.slice(base.length + 1)))) old.push(k); }
+      old.forEach((k) => { try { JSON.parse(localStorage.getItem(k) || '[]').forEach((v) => set.add(v)); } catch (e) {} });
+      if (old.some((k) => k !== base)) { localStorage.setItem(base, JSON.stringify([...set])); old.forEach((k) => { if (k !== base) localStorage.removeItem(k); }); }
+    } catch (e) {}
+    return set;
+  }
+  function loadStars() { stars = loadSet('stars'); marks = loadSet('marks'); }
+  // Served, the page also keeps them in the server's bookmarks file, which outlives the browser's storage
+  // and does not change with the port. The file wins; a transcript it has never seen takes the browser's.
+  let serverBookmarks = false, pushTimer = null, pending = null;
+  const bookmarkUrl = (k) => 'api/bookmarks?key=' + encodeURIComponent(k);
+  function flushBookmarks() {
+    clearTimeout(pushTimer); const p = pending; pending = null;
+    if (p) fetch(bookmarkUrl(p.key), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: p.body, keepalive: true }).catch(() => {});
+  }
+  window.addEventListener('pagehide', flushBookmarks);
+  async function syncBookmarks() {
+    const key = fileKey;
+    if (!serverBookmarks || !/\.jsonl$/.test(key)) return;
+    let entry;
+    try { const r = await fetch(bookmarkUrl(key), { cache: 'no-store' }); if (!r.ok) return; entry = await r.json(); } catch (e) { return; }
+    if (key !== fileKey) return;
+    if (!entry) { if (stars.size || marks.size) pushBookmarks(); return; }
+    stars = new Set(entry.stars || []); marks = new Set(entry.marks || []);
+    try { localStorage.setItem('replay.stars.' + key, JSON.stringify([...stars])); localStorage.setItem('replay.marks.' + key, JSON.stringify([...marks])); } catch (e) {}
+    renderRail(); render(true);
+  }
+  function pushBookmarks() {
+    if (!serverBookmarks || !/\.jsonl$/.test(fileKey)) return;
+    // A save still waiting for another transcript goes now, not lost to this one.
+    if (pending && pending.key !== fileKey) flushBookmarks();
+    pending = { key: fileKey, body: JSON.stringify({ stars: [...stars], marks: [...marks] }) };
+    clearTimeout(pushTimer); pushTimer = setTimeout(flushBookmarks, 300);
+  }
+  function saveStars() { try { localStorage.setItem('replay.stars.' + fileKey, JSON.stringify([...stars])); } catch (e) {} pushBookmarks(); }
+  function saveMarks() { try { localStorage.setItem('replay.marks.' + fileKey, JSON.stringify([...marks])); } catch (e) {} pushBookmarks(); }
+  // Turn number to how many of its steps are bookmarked.
+  function marksPerTurn() { const m = new Map(); events.forEach((e) => { if (marks.has(e.id)) m.set(e.turn, (m.get(e.turn) || 0) + 1); }); return m; }
+  // Event indexes of every bookmark and starred turn, in order.
+  function bookmarkStops() {
+    const s = new Set();
+    turns.forEach((t) => { if (stars.has(starKey(t))) s.add(t.first); });
+    events.forEach((e, i) => { if (marks.has(e.id)) s.add(i); });
+    return [...s].sort((a, b) => a - b);
+  }
+  let markedTurns = new Map(), stops = [];
+  const isSignificant = (t, i) => stars.has(starKey(t)) || markedTurns.has(i) || t.heavy || (t.sig && t.sig !== 'routine');
+
+  // ---------- loading ----------
+  // `handle` (a FileSystemFileHandle, or a promise of one) lets the file be reopened from Recent.
+  async function loadFile(file, handle) {
+    current = null; setHash('');
+    // Keyed by name alone, as a session opened from the list is: a live transcript grows, and its size with it.
+    await loadStream(file.stream(), file.size, file.name, file.name, file.name + '  (' + mb(file.size) + ')');
+    let h = null; try { h = await handle; } catch (e) {}
+    if (h && h.kind === 'file') addRecent({ kind: 'file', handle: h, name: file.name, size: file.size });
+  }
+  const mb = (n) => (n >= 1048576 ? (n / 1048576).toFixed(0) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
+  async function loadStream(stream, size, name, key, label) {
+    stop();
+    $('src').textContent = 'Reading ' + name + '...';
+    const bar = $('progress'); bar.hidden = false; const fill = bar.firstElementChild;
+    const parser = makeParser();
+    let done = 0, rest = '';
+    const reader = stream.getReader();
+    const dec = new TextDecoder();
+    for (;;) {
+      const { value, done: end } = await reader.read();
+      if (end) break;
+      done += value.byteLength;
+      const chunk = rest + dec.decode(value, { stream: true });
+      const lines = chunk.split('\n'); rest = lines.pop();
+      for (const l of lines) parser.line(l);
+      fill.style.width = (100 * done / Math.max(1, size)).toFixed(1) + '%';
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    parser.line(rest + dec.decode());
+    bar.hidden = true;
+    parser.out.sort((a, b) => (a.ts && b.ts ? (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0) : 0));
+    fileKey = key; loadStars();
+    setData(parser.out, label, false);
+    syncBookmarks();
+  }
+
+  // ---------- sessions from the local server ----------
+  // Served by server.js, the page lists ~/.claude/projects itself; opened as a plain file it cannot,
+  // and the Sessions button stays hidden.
+  let sessionList = [], current = null;
+  const sessKey = (s) => s.project + '/' + s.file;
+  const whereOf = (s) => s.cwd || s.project;
+  function setHash(v) { try { history.replaceState(null, '', v ? '#' + v : location.pathname + location.search); } catch (e) {} }
+  async function fetchSessions() {
+    const r = await fetch('api/sessions', { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    sessionList = data.sessions || [];
+    $('pickerRoot').textContent = data.root || '';
+    const sel = $('pickerProject'); const keep = sel.value;
+    const wheres = [...new Set(sessionList.map(whereOf))].sort((a, b) => a.localeCompare(b));
+    sel.innerHTML = '<option value="">All projects (' + sessionList.length + ')</option>' + wheres.map((w) => '<option value="' + esc(w) + '">' + esc(w) + ' (' + sessionList.filter((s) => whereOf(s) === w).length + ')</option>').join('');
+    if (wheres.includes(keep)) sel.value = keep;
+    renderSessions();
+  }
+  function renderSessions() {
+    const q = $('pickerSearch').value.trim().toLowerCase();
+    const w = $('pickerProject').value;
+    const rows = sessionList.filter((s) => (!w || whereOf(s) === w) && (!q || (s.firstPrompt + ' ' + whereOf(s) + ' ' + (s.branch || '') + ' ' + s.file).toLowerCase().includes(q)));
+    const box = $('sessionList');
+    if (!rows.length) { box.innerHTML = '<div class="empty">' + (sessionList.length ? 'No session matches.' : 'Reading the sessions folder...') + '</div>'; return; }
+    box.innerHTML = rows.map((s) => {
+      const k = sessKey(s);
+      return '<button class="sess' + (current === k ? ' current' : '') + '" role="listitem" data-key="' + esc(k) + '">'
+        + '<span class="first">' + esc(s.firstPrompt || '(no prompt)') + '</span>'
+        + '<span class="meta"><span class="where">' + esc(whereOf(s)) + '</span>' + (s.branch ? '<span>' + esc(s.branch) + '</span>' : '')
+        + '<span>' + fmtDate(s.modified) + ' ' + fmtTime(s.modified) + '</span><span>' + s.prompts.toLocaleString() + ' prompts</span><span>' + mb(s.size) + '</span></span></button>';
+    }).join('');
+  }
+  async function openSession(s) {
+    const k = sessKey(s);
+    const r = await fetch('api/session?project=' + encodeURIComponent(s.project) + '&file=' + encodeURIComponent(s.file), { cache: 'no-store' });
+    if (!r.ok || !r.body) { $('src').textContent = 'Could not open ' + s.file + ' (' + r.status + ')'; return; }
+    current = k; setHash('s=' + encodeURIComponent(k));
+    const size = Number(r.headers.get('Content-Length')) || s.size;
+    await loadStream(r.body, size, s.file, s.file, whereOf(s) + '  ·  ' + fmtDate(s.modified) + '  (' + mb(size) + ')');
+    addRecent({ kind: 'session', project: s.project, file: s.file, name: s.file, where: whereOf(s), size });
+  }
+
+  // ---------- recent files ----------
+  // Kept in IndexedDB, which can hold a file handle: a file picked with the browser's file picker (or dropped,
+  // in Chromium) reopens from here after the browser asks once for read access. A session from the list
+  // reopens through the server. Where the browser has neither, the list stays empty and the button hidden.
+  const RECENT_MAX = 15;
+  const byOpened = (a, b) => (a.opened < b.opened ? 1 : a.opened > b.opened ? -1 : 0);
+  const served = () => !$('browse').hidden;
+  function recentStore(mode, fn) {
+    return new Promise((resolve, reject) => {
+      const open = indexedDB.open('jsonlviewer', 1);
+      open.onupgradeneeded = () => open.result.createObjectStore('recent', { keyPath: 'id' });
+      open.onerror = () => reject(open.error);
+      open.onsuccess = () => {
+        const db = open.result; const tx = db.transaction('recent', mode); const req = fn(tx.objectStore('recent'));
+        tx.oncomplete = () => { db.close(); resolve(req && req.result); };
+        tx.onerror = tx.onabort = () => { db.close(); reject(tx.error); };
+      };
+    });
+  }
+  async function recentAll() { try { return ((await recentStore('readonly', (st) => st.getAll())) || []).sort(byOpened); } catch (e) { return []; } }
+  async function addRecent(entry) {
+    try {
+      const all = await recentAll();
+      let same = null;
+      for (const r of all) {
+        if (entry.kind === 'session' ? r.kind === 'session' && r.project === entry.project && r.file === entry.file
+          : r.kind === 'file' && r.handle && await r.handle.isSameEntry(entry.handle).catch(() => false)) { same = r; break; }
+      }
+      entry.id = same ? same.id : Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      entry.opened = new Date().toISOString();
+      entry.first = turns.length ? turns[0].prompt.slice(0, 300) : '';
+      const drop = all.filter((r) => r.id !== entry.id).slice(RECENT_MAX - 1);
+      await recentStore('readwrite', (st) => { st.put(entry); drop.forEach((r) => st.delete(r.id)); });
+    } catch (e) {}
+    showRecentButton();
+  }
+  async function showRecentButton() { $('recentBtn').hidden = !(await recentAll()).length; }
+  let recentItems = [];
+  async function renderRecent() {
+    recentItems = await recentAll();
+    const box = $('recentList');
+    $('recentNote').textContent = window.showOpenFilePicker ? '' : 'This browser cannot reopen picked files; sessions from the list are kept.';
+    if (!recentItems.length) { box.innerHTML = '<div class="empty">Nothing opened yet. Files you open with the button above, or drop on the page, are listed here.</div>'; return; }
+    box.innerHTML = recentItems.map((r) => {
+      const off = r.kind === 'session' && !served();
+      return '<div class="recent-row" role="listitem"><button class="sess" data-id="' + esc(r.id) + '"' + (off ? ' disabled' : '') + '>'
+        + '<span class="first">' + esc(plainText(r.first || r.name)) + '</span>'
+        + '<span class="meta"><span class="where">' + esc(r.kind === 'session' ? r.where : r.name) + '</span>'
+        + '<span>' + (r.kind === 'session' ? 'from the sessions list' : 'local file') + '</span>'
+        + '<span>opened ' + fmtDate(r.opened) + ' ' + fmtTime(r.opened) + '</span>' + (r.size ? '<span>' + mb(r.size) + '</span>' : '')
+        + (off ? '<span class="gone">needs the server</span>' : '') + '</span></button>'
+        + '<button class="rm" data-rm="' + esc(r.id) + '" aria-label="Remove from the list" title="Remove from the list">&times;</button></div>';
+    }).join('');
+  }
+  async function openRecent(r) {
+    if (r.kind === 'session') {
+      const s = sessionList.find((x) => x.project === r.project && x.file === r.file) || { project: r.project, file: r.file, size: r.size, modified: r.opened, cwd: r.where };
+      return openSession(s);
+    }
+    try {
+      // Read access is granted per browser session; asking needs this click, so it comes first.
+      if ((await r.handle.queryPermission({ mode: 'read' })) !== 'granted' && (await r.handle.requestPermission({ mode: 'read' })) !== 'granted') return;
+      await loadFile(await r.handle.getFile(), r.handle);
+    } catch (e) { $('src').textContent = 'Could not open ' + r.name + ' (' + (e.name === 'NotFoundError' ? 'it has been moved or deleted' : e.message) + ')'; }
+  }
+  // The browser's own file dialog where it can return a handle; the plain file input elsewhere.
+  async function pickFile() {
+    if (!window.showOpenFilePicker) { $('file').click(); return; }
+    let h;
+    try { [h] = await window.showOpenFilePicker({ id: 'jsonl', types: [{ description: 'Claude Code transcripts', accept: { 'application/x-ndjson': ['.jsonl'], 'application/json': ['.json'] } }] }); } catch (e) { return; }
+    try { await loadFile(await h.getFile(), h); } catch (e) { $('src').textContent = 'Could not open ' + h.name + ' (' + e.message + ')'; }
+  }
+  function openRecentDialog() { const d = $('recent'); if (!d.open) d.showModal(); renderRecent(); }
+  $('recentBtn').onclick = openRecentDialog;
+  $('recentClose').onclick = () => $('recent').close();
+  $('recentPick').onclick = () => { $('recent').close(); pickFile(); };
+  $('recentClear').onclick = async () => { try { await recentStore('readwrite', (st) => st.clear()); } catch (e) {} renderRecent(); showRecentButton(); };
+  $('recent').addEventListener('click', (e) => { if (e.target === $('recent')) $('recent').close(); });
+  $('recentList').onclick = async (e) => {
+    const rm = e.target.closest('[data-rm]');
+    if (rm) { try { await recentStore('readwrite', (st) => st.delete(rm.dataset.rm)); } catch (err) {} renderRecent(); showRecentButton(); return; }
+    const b = e.target.closest('.sess'); if (!b || b.disabled) return;
+    const r = recentItems.find((x) => x.id === b.dataset.id); if (!r) return;
+    $('recent').close(); openRecent(r);
+  };
+  function openPicker() { const d = $('picker'); if (!d.open) d.showModal(); renderSessions(); $('pickerSearch').focus(); fetchSessions().catch(() => {}); }
+  $('browse').onclick = openPicker;
+  $('pickerClose').onclick = () => $('picker').close();
+  $('pickerRefresh').onclick = () => fetchSessions().catch((e) => { $('sessionList').innerHTML = '<div class="empty">Could not list sessions: ' + esc(e.message) + '</div>'; });
+  $('pickerSearch').oninput = renderSessions;
+  $('pickerProject').onchange = renderSessions;
+  $('picker').addEventListener('click', (e) => { if (e.target === $('picker')) $('picker').close(); });
+  $('sessionList').onclick = (e) => {
+    const b = e.target.closest('.sess'); if (!b) return;
+    const s = sessionList.find((x) => sessKey(x) === b.dataset.key); if (!s) return;
+    $('picker').close(); openSession(s);
+  };
+  async function startWithServer() {
+    if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+    try { await fetchSessions(); } catch (e) { return; }
+    $('browse').hidden = false; serverBookmarks = true;
+    const m = /^#s=(.+)$/.exec(location.hash);
+    const wanted = m ? decodeURIComponent(m[1]) : null;
+    const s = wanted && sessionList.find((x) => sessKey(x) === wanted);
+    if (s) openSession(s); else if (sessionList.length) openPicker();
+  }
+  function setData(evs, label, isExample) {
+    events = evs; turns = buildTurns(events);
+    $('src').textContent = label;
+    renderStats(isExample);
+    renderRail();
+    $('scrub').max = Math.max(0, events.length - 1);
+    goTurn(0, true);
+  }
+
+  // ---------- rendering ----------
+  const fmtTime = (ts) => { if (!ts) return ''; const d = new Date(ts); return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); };
+  const fmtDate = (ts) => { if (!ts) return ''; const d = new Date(ts); return d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }); };
+  function renderStats(isExample) {
+    const count = (k) => events.filter((e) => e.kind === k).length;
+    const prompts = events.filter((e) => e.kind === 'prompt').length;
+    const days = new Set(events.filter((e) => e.ts).map((e) => e.ts.slice(0, 10))).size;
+    const compactions = events.filter((e) => e.kind === 'marker' && e.name === 'Context compacted').length;
+    const chips = [
+      isExample ? '<span class="chip example">Example data</span>' : '',
+      `<span class="chip"><b>${prompts.toLocaleString()}</b> prompts</span>`,
+      `<span class="chip"><b>${turns.length.toLocaleString()}</b> turns</span>`,
+      `<span class="chip"><b>${count('tool').toLocaleString()}</b> tool calls</span>`,
+      `<span class="chip"><b>${days}</b> days</span>`,
+      `<span class="chip"><b>${compactions}</b> compactions</span>`,
+    ];
+    $('stats').innerHTML = chips.join('');
+  }
+  // A prompt's preview in the rail, without its markdown symbols.
+  const plainText = (s) => s.replace(/^```.*$/gm, '').replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, '').replace(/(\*\*|__|`)/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
+  function renderRail() {
+    const q = $('search').value.trim().toLowerCase();
+    const sigOnly = $('sigOnly').checked;
+    const frag = document.createDocumentFragment();
+    let shown = 0;
+    markedTurns = marksPerTurn(); stops = bookmarkStops();
+    turns.forEach((t, i) => {
+      if (sigOnly && !isSignificant(t, i)) return;
+      if (q) {
+        let hit = t.prompt.toLowerCase().includes(q);
+        if (!hit) for (let k = t.first; k <= t.last && !hit; k++) { const e = events[k]; if ((e.kind === 'reply' || e.kind === 'prompt') && e.text.toLowerCase().includes(q)) hit = true; }
+        if (!hit) return;
+      }
+      shown++;
+      const starred = stars.has(starKey(t));
+      const d = document.createElement('div');
+      const sigClass = starred ? ' sig sig-star' : (t.sig && t.sig !== 'routine') ? ' sig sig-' + t.sig : (t.heavy ? ' sig sig-direction' : '');
+      d.className = 'turn' + (t.compactBefore ? ' compact-before' : '') + sigClass + (t.sig === 'routine' && !starred ? ' routine' : '');
+      d.dataset.turn = i; d.setAttribute('role', 'option'); d.tabIndex = -1;
+      const tags = (t.sig && t.sig !== 'routine' ? `<span class="tag ${t.sig}">${t.sig}</span>` : '') + (t.heavy ? `<span class="tag heavy">${t.tools} tools</span>` : '');
+      d.innerHTML = `<span class="n">${i + 1}</span><span class="p">${tags}${esc(plainText(t.prompt).slice(0, 240))}</span><button class="star${starred ? ' on' : ''}" data-star="${i}" aria-label="${starred ? 'Remove star' : 'Star this turn'}" title="${starred ? 'Remove star' : 'Star this turn'}">${starred ? '&#9733;' : '&#9734;'}</button><span class="t">${fmtDate(t.ts)} ${fmtTime(t.ts)}${t.mids ? ` <span class="mid">+${t.mids} mid-turn</span>` : ''}${markedTurns.has(i) ? ` <span class="marks">&#9733; ${markedTurns.get(i)} bookmarked</span>` : ''}</span>`;
+      frag.appendChild(d);
+    });
+    const box = $('turns'); box.innerHTML = ''; box.appendChild(frag);
+    const sigCount = turns.filter(isSignificant).length;
+    $('count').textContent = (q || sigOnly)
+      ? `${shown.toLocaleString()} of ${turns.length.toLocaleString()} turns shown  ·  ${sigCount.toLocaleString()} significant`
+      : `${turns.length.toLocaleString()} turns  ·  ${sigCount.toLocaleString()} significant`;
+    markRail();
+  }
+  function markRail() {
+    const cur = events[cursor] ? events[cursor].turn : 0;
+    document.querySelectorAll('#turns .turn.on').forEach((n) => n.classList.remove('on'));
+    const el = document.querySelector(`#turns .turn[data-turn="${cur}"]`);
+    if (el) { el.classList.add('on'); el.setAttribute('aria-selected', 'true'); const box = $('turns'); if (el.offsetTop < box.scrollTop || el.offsetTop > box.scrollTop + box.clientHeight - 40) box.scrollTop = el.offsetTop - 60; }
+  }
+  // Raw HTML in a transcript is shown as the text it was, not dropped by DOMPurify: a prompt that mentions
+  // <system-reminder> keeps the words. Typed text (prompts, thinking) keeps its single line breaks.
+  try { if (window.marked) marked.use({ renderer: { html: (h) => esc(typeof h === 'string' ? h : h.text) } }); } catch (e) {}
+  const md = (s, breaks) => { try { if (window.marked && window.DOMPurify) return DOMPurify.sanitize(marked.parse(s, { breaks: !!breaks, gfm: true })); } catch (e) {} return '<p>' + esc(s).replace(/\n/g, '<br>') + '</p>'; };
+  const mdInline = (s) => { try { if (window.marked && window.DOMPurify) return DOMPurify.sanitize(marked.parseInline(s, { gfm: true })); } catch (e) {} return esc(s); };
+  // Prompts, thinking and the summary after a compaction are markdown as much as replies are; API errors stay plain.
+  const bodyHtml = (e, s) => e.mdFile ? md(s.slice(s.indexOf('\n') + 1)) : e.kind === 'prompt' || e.kind === 'think' ? md(s, true) : e.kind === 'marker' && !e.err ? md(s) : esc(s);
+  function evNode(e) {
+    const n = document.createElement('div');
+    const more = e.cut ? `<div class="more"><button type="button" data-expand>${e.cut.toLocaleString()} more characters not shown. Show all</button></div>` : '';
+    n._ev = e;
+    const time = `<time>${fmtTime(e.ts)}</time>`;
+    if (e.kind === 'answer' && e.asked && drawAnswer(n, e, time)) return n;
+    switch (e.kind) {
+      case 'prompt': n.className = 'ev prompt'; n.innerHTML = `<div class="who">${e.mid ? 'You, mid-turn' : 'You'} ${time}</div><div class="body md">${bodyHtml(e, e.text)}</div>`; break;
+      case 'reply': n.className = 'ev reply'; n.innerHTML = `<div class="who">Claude ${time}</div><div class="body">${md(e.text)}</div>`; break;
+      case 'think': n.className = 'ev think'; n.innerHTML = `<div class="who">Thinking ${time}</div><div class="body md">${bodyHtml(e, e.text)}</div>${more}`; break;
+      case 'tool': if (e.input && drawTool(n, e, time)) break;
+        if (e.mdFile) { n.className = 'ev tool'; n.innerHTML = `<div class="who">Write ${time}</div><div class="path">${esc(e.mdFile)}</div><div class="plan body md">${bodyHtml(e, e.text)}</div>${more}`; break; }
+        n.className = 'ev tool'; n.innerHTML = `<div class="who">${esc(e.name)} ${time}</div><pre>${esc(e.text)}</pre>${more}`; break;
+      case 'answer':
+      case 'result': if (e.asked && drawAnswer(n, e, time)) break; n.className = 'ev result' + (e.err ? ' err' : ''); n.innerHTML = `<div class="who">${e.err ? 'Error from ' : 'Result of '}${esc(e.name)} ${time}</div><pre>${esc(e.text || '(empty)')}</pre>${more}`; break;
+      default: n.className = 'ev marker'; n.innerHTML = `<div class="who">${esc(e.name)} ${time}</div>${e.text ? `<div class="body${e.err ? '' : ' md'}">${bodyHtml(e, e.text)}</div>` : ''}${more}`;
+    }
+    return n;
+  }
+  // AskUserQuestion, ExitPlanMode and TodoWrite, drawn the way the terminal showed them rather than as their JSON.
+  function askHtml(input, chosen) {
+    const qs = Array.isArray(input && input.questions) ? input.questions : [];
+    if (!qs.length) return '';
+    return '<div class="ask">' + qs.map((q) => {
+      const answer = chosen ? chosen[q.question] : undefined;
+      const picked = answer == null ? [] : String(answer).split(', ');
+      const opts = (q.options || []).map((o, i) => {
+        const on = picked.includes(o.label);
+        return `<li class="${on ? 'chosen' : ''}"><span class="num">${i + 1}.</span><span class="lbl">${esc(o.label)}</span>${o.description ? `<span class="desc">${mdInline(o.description)}</span>` : ''}</li>`;
+      });
+      const other = answer != null && !(q.options || []).some((o) => picked.includes(o.label));
+      opts.push(`<li class="other${other ? ' chosen' : ''}"><span class="num">${(q.options || []).length + 1}.</span><span class="lbl">${other ? esc(answer) : 'Type something'}</span></li>`);
+      return `<div class="ask-q">${q.header ? `<div class="ask-head">${esc(q.header)}${q.multiSelect ? '<span class="multi">choose any</span>' : ''}</div>` : ''}<p class="ask-text">${mdInline(q.question)}</p><ol class="ask-opts">${opts.join('')}</ol></div>`;
+    }).join('') + '</div>';
+  }
+  function drawTool(n, e, time) {
+    const i = e.input;
+    if (e.name === 'AskUserQuestion') {
+      const html = askHtml(i); if (!html) return false;
+      n.className = 'ev tool'; n.innerHTML = `<div class="who">Claude asks ${time}</div>${html}`; return true;
+    }
+    if (e.name === 'ExitPlanMode' && typeof i.plan === 'string') {
+      n.className = 'ev tool'; n.innerHTML = `<div class="who">Plan for approval ${time}</div><div class="plan body">${md(i.plan)}</div>`; return true;
+    }
+    if (e.name === 'TodoWrite' && Array.isArray(i.todos)) {
+      n.className = 'ev tool';
+      n.innerHTML = `<div class="who">To-do list ${time}</div><ul class="todos">${i.todos.map((t) => `<li class="${esc(t.status || 'pending')}">${esc(t.status === 'in_progress' && t.activeForm ? t.activeForm : t.content || '')}</li>`).join('')}</ul>`;
+      return true;
+    }
+    return false;
+  }
+  function drawAnswer(n, e, time) {
+    if (e.err) {
+      n.className = 'ev result err'; n.innerHTML = `<div class="who">Question declined ${time}</div><pre>${esc(e.text || '')}</pre>`; return true;
+    }
+    if (!e.answers) return false;
+    const { answers, notes } = e.answers;
+    n.className = 'ev result';
+    n.innerHTML = `<div class="who">You answered ${time}</div><ul class="answers">${Object.keys(answers).map((q) => {
+      const note = notes && notes[q] && notes[q].notes;
+      return `<li>${esc(q)}<span class="arrow">&rarr;</span><b>${esc(answers[q])}</b>${note ? `<span class="note">${esc(note)}</span>` : ''}</li>`;
+    }).join('')}</ul>${askHtml(e.asked, answers) ? `<details><summary class="more">Show the question as asked</summary>${askHtml(e.asked, answers)}</details>` : ''}`;
+    return true;
+  }
+  $('feed').addEventListener('click', (ev) => {
+    const m = ev.target.closest('[data-mark]');
+    if (m) { toggleMark(Number(m.closest('.ev').dataset.i)); return; }
+    const b = ev.target.closest('[data-expand]'); if (!b) return;
+    const node = b.closest('.ev'); const e = node && node._ev; if (!e || !e.full) return;
+    const target = node.querySelector('pre') || node.querySelector('.body');
+    if (!node.classList.contains('expanded')) {
+      if (target) { if (target.matches('.body')) target.innerHTML = bodyHtml(e, e.full); else target.textContent = e.full; }
+      node.classList.add('expanded'); b.textContent = 'Show less';
+    } else {
+      if (target) { if (target.matches('.body')) target.innerHTML = bodyHtml(e, e.text); else target.textContent = e.text; }
+      node.classList.remove('expanded'); b.textContent = `${e.cut.toLocaleString()} more characters not shown. Show all`;
+    }
+  });
+  let renderedTurn = -1, renderedUpTo = -1;
+  function render(forceTurn) {
+    const feed = $('feed');
+    if (!events.length) { feed.innerHTML = '<div class="cursor-note">No messages found in this file.</div>'; return; }
+    const cur = events[cursor]; const t = turns[cur.turn];
+    if (forceTurn || cur.turn !== renderedTurn || cursor < renderedUpTo) {
+      feed.innerHTML = ''; renderedTurn = cur.turn; renderedUpTo = t.first - 1;
+      $('turnTitle').textContent = `Turn ${cur.turn + 1} of ${turns.length.toLocaleString()}`;
+      const span = turns[cur.turn].ts && events[t.last].ts ? Math.round((new Date(events[t.last].ts) - new Date(t.ts)) / 1000) : 0;
+      const tools = events.slice(t.first, t.last + 1).filter((e) => e.kind === 'tool').length;
+      $('turnMeta').textContent = `${fmtDate(t.ts)} ${fmtTime(t.ts)}  ·  ${tools} tool calls  ·  ${span >= 60 ? Math.round(span / 60) + ' min' : span + ' s'}`;
+    }
+    const frag = document.createDocumentFragment();
+    for (let i = renderedUpTo + 1; i <= cursor; i++) if (visible[events[i].kind]) frag.appendChild(withMark(evNode(events[i]), i));
+    renderedUpTo = cursor;
+    feed.appendChild(frag);
+    let note = feed.querySelector('.cursor-note'); if (note) note.remove();
+    if (cursor < t.last) { note = document.createElement('div'); note.className = 'cursor-note'; note.textContent = `${(t.last - cursor).toLocaleString()} more entries in this turn`; feed.appendChild(note); }
+    feed.scrollTop = feed.scrollHeight;
+    $('scrub').value = cursor;
+    $('pos').textContent = `${(cursor + 1).toLocaleString()} / ${events.length.toLocaleString()}`;
+    markRail();
+    markButtons();
+  }
+  // Every step in the feed carries its own bookmark toggle.
+  function withMark(n, i) {
+    const on = marks.has(events[i].id);
+    n.dataset.i = i; n.classList.toggle('marked', on);
+    const who = n.querySelector('.who');
+    if (who) who.insertAdjacentHTML('beforeend', `<button type="button" class="mark${on ? ' on' : ''}" data-mark aria-pressed="${on}" aria-label="Bookmark this step" title="Bookmark this step">${on ? '&#9733;' : '&#9734;'}</button>`);
+    return n;
+  }
+  function markButtons() {
+    const on = !!events[cursor] && marks.has(events[cursor].id);
+    const b = $('markStep'); b.classList.toggle('on', on); b.innerHTML = on ? '&#9733;' : '&#9734;'; b.setAttribute('aria-pressed', on);
+    b.title = on ? 'Remove the bookmark on this step (B)' : 'Bookmark this step (B)';
+    $('prevMark').disabled = !stops.some((s) => s < cursor);
+    $('nextMark').disabled = !stops.some((s) => s > cursor);
+  }
+  function toggleMark(i) {
+    const e = events[i]; if (!e) return;
+    marks.has(e.id) ? marks.delete(e.id) : marks.add(e.id); saveMarks();
+    const on = marks.has(e.id);
+    const node = document.querySelector(`#feed .ev[data-i="${i}"]`);
+    if (node) {
+      node.classList.toggle('marked', on);
+      const b = node.querySelector('[data-mark]'); if (b) { b.classList.toggle('on', on); b.innerHTML = on ? '&#9733;' : '&#9734;'; b.setAttribute('aria-pressed', on); }
+    }
+    renderRail(); markButtons();
+  }
+  function goMark(dir) {
+    const to = dir > 0 ? stops.find((s) => s > cursor) : stops.filter((s) => s < cursor).pop();
+    if (to != null) stepTo(to, true);
+  }
+
+  // ---------- navigation ----------
+  const isShown = (i) => visible[events[i].kind];
+  function stepTo(i, force) { cursor = Math.max(0, Math.min(events.length - 1, i)); render(force); }
+  function forward() { let i = cursor + 1; while (i < events.length - 1 && !isShown(i)) i++; if (i >= events.length) { stop(); return false; } stepTo(i); return i < events.length - 1; }
+  function backward() { let i = cursor - 1; while (i > 0 && !isShown(i)) i--; stepTo(i, true); }
+  function goTurn(n, force) { n = Math.max(0, Math.min(turns.length - 1, n)); stepTo(turns.length ? turns[n].first : 0, force !== false); }
+  function play() {
+    if (timer) return; $('play').innerHTML = '&#10074;&#10074;'; $('play').setAttribute('aria-label', 'Pause');
+    const tick = () => { if (!forward()) { stop(); return; } timer = setTimeout(tick, 1000 / Number($('speed').value)); };
+    timer = setTimeout(tick, 1000 / Number($('speed').value));
+  }
+  function stop() { clearTimeout(timer); timer = null; $('play').innerHTML = '&#9654;'; $('play').setAttribute('aria-label', 'Play'); }
+
+  $('play').onclick = () => (timer ? stop() : play());
+  $('fwd').onclick = () => { stop(); forward(); };
+  $('back').onclick = () => { stop(); backward(); };
+  // The turn's last entry: everything in it that the filters show is then on screen.
+  $('endTurn').onclick = () => { stop(); if (events.length) stepTo(turns[events[cursor].turn].last); };
+  $('nextTurn').onclick = () => { stop(); goTurn((events[cursor]?.turn ?? 0) + 1); };
+  $('prevTurn').onclick = () => { stop(); goTurn((events[cursor]?.turn ?? 0) - 1); };
+  $('markStep').onclick = () => toggleMark(cursor);
+  $('nextMark').onclick = () => { stop(); goMark(1); };
+  $('prevMark').onclick = () => { stop(); goMark(-1); };
+  $('scrub').oninput =(e) => { stop(); stepTo(Number(e.target.value), true); };
+  $('speed').onchange = () => { try { localStorage.setItem('replay.speed', $('speed').value); } catch (e) {} };
+  $('turns').onclick = (e) => {
+    const s = e.target.closest('.star');
+    if (s) { e.stopPropagation(); const t = turns[Number(s.dataset.star)]; const k = starKey(t); stars.has(k) ? stars.delete(k) : stars.add(k); saveStars(); renderRail(); markButtons(); return; }
+    const el = e.target.closest('.turn'); if (el) { stop(); goTurn(Number(el.dataset.turn)); }
+  };
+  try { $('sigOnly').checked = localStorage.getItem('replay.sigOnly') === '1'; } catch (e) {}
+  $('sigOnly').onchange = () => { try { localStorage.setItem('replay.sigOnly', $('sigOnly').checked ? '1' : '0'); } catch (e) {} renderRail(); };
+  let searchTimer; $('search').oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderRail, 200); };
+  document.querySelectorAll('#filters input').forEach((cb) => cb.onchange = () => {
+    visible[cb.dataset.kind] = cb.checked;
+    try { localStorage.setItem('replay.filters', JSON.stringify(visible)); } catch (e) {}
+    render(true);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.target.matches('input[type=search], select') || $('picker').open || $('recent').open) return;
+    if (e.key === ' ') { e.preventDefault(); timer ? stop() : play(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); stop(); forward(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); stop(); backward(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); $('nextTurn').click(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); $('prevTurn').click(); }
+    else if (e.key === 'End') { e.preventDefault(); $('endTurn').click(); }
+    else if (e.ctrlKey || e.metaKey || e.altKey) return;
+    else if (e.key === 'b' || e.key === 'B') { e.preventDefault(); toggleMark(cursor); }
+    else if (e.key === ']') { e.preventDefault(); $('nextMark').click(); }
+    else if (e.key === '[') { e.preventDefault(); $('prevMark').click(); }
+  });
+  $('pick').onclick = pickFile;
+  $('file').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) loadFile(f); };
+  let dragDepth = 0;
+  window.addEventListener('dragenter', (e) => { if ([...(e.dataTransfer?.types || [])].includes('Files')) { dragDepth++; $('drop').hidden = false; } });
+  window.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; $('drop').hidden = true; } });
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => {
+    e.preventDefault(); dragDepth = 0; $('drop').hidden = true;
+    const f = e.dataTransfer.files[0]; if (!f) return;
+    // The handle has to be asked for while the drop event is still running; it resolves later.
+    const item = [...e.dataTransfer.items].find((i) => i.kind === 'file');
+    let handle = null; try { if (item && item.getAsFileSystemHandle) handle = item.getAsFileSystemHandle(); } catch (err) {}
+    loadFile(f, handle);
+  });
+
+  // ---------- example session (shown until a file is opened) ----------
+  const ex = [];
+  const at = (m) => new Date(Date.UTC(2026, 8, 1, 9, m, 0)).toISOString();
+  let id = 0;
+  const u = (m, text) => ex.push(JSON.stringify({ type: 'user', uuid: 'u' + id++, timestamp: at(m), message: { role: 'user', content: text } }));
+  const a = (m, blocks) => ex.push(JSON.stringify({ type: 'assistant', uuid: 'a' + id++, timestamp: at(m), message: { role: 'assistant', content: blocks } }));
+  const r = (m, tid, text, err) => ex.push(JSON.stringify({ type: 'user', uuid: 'r' + id++, timestamp: at(m), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: tid, content: text, is_error: !!err }] } }));
+  u(0, 'Move the IncomeCompAdjust entity from LightSpeed to Entity Framework.');
+  a(0, [{ type: 'thinking', thinking: 'Check the table has rows first, then write a load guard before touching the class.' }]);
+  a(0, [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'sqlcmd -S localhost -d WC_Cms -Q "SELECT COUNT(*) FROM dbo.IncomeCompAdjust"' } }]);
+  r(1, 't1', '-----------\n        412\n\n(1 rows affected)');
+  a(1, [{ type: 'text', text: 'The table is live (**412** rows), so it migrates rather than being deleted. Writing the load guard first so it has a green reading on LightSpeed.' }]);
+  a(2, [{ type: 'tool_use', id: 't2', name: 'Write', input: { file_path: 'CmsIntegrationTests/IncomeComp/IncomeCompAdjustLoadTests.cs', content: '[Test]\npublic void LoadsTheSeededRows() { ... }' } }]);
+  r(2, 't2', 'File created successfully');
+  a(4, [{ type: 'tool_use', id: 't3', name: 'PowerShell', input: { command: 'vstest.console.exe CmsIntegrationTests.dll /TestCaseFilter:"FullyQualifiedName~IncomeCompAdjust"' } }]);
+  r(5, 't3', 'Passed LoadsTheSeededRows\nTotal tests: 1\n     Passed: 1');
+  a(5, [{ type: 'text', text: 'Guard is green on LightSpeed. Next: the EF class in `Entities/IncomeCompAdjust_Migrated.cs`, the `DbSet`, and the `.csproj` entry.' }]);
+  u(7, 'Before migrating a class, always check that its table has rows in WC_Cms. If it is empty, stop and ask me.');
+  a(7, [{ type: 'text', text: 'Understood. I will check row counts first and ask before migrating an empty table.' }]);
+  u(9, 'commit and push');
+  a(9, [{ type: 'tool_use', id: 't4', name: 'Bash', input: { command: 'git commit -q -m "Migrate IncomeCompAdjust to EF" && git push' } }]);
+  r(10, 't4', 'fatal: unable to access remote: timed out', true);
+  a(10, [{ type: 'text', text: 'The push timed out; the commit is made locally. Retrying.' }]);
+  a(11, [{ type: 'tool_use', id: 't5', name: 'AskUserQuestion', input: { questions: [{ question: 'MedCertTreatment is empty in WC_Cms and every test database. How should I treat it?', header: 'Empty table', multiSelect: false, options: [
+    { label: 'Leave it migrated, flag the caveat (Recommended)', description: 'All three gates passed and the guard pins the column mapping; note in the commit that no real row was read.' },
+    { label: 'Delete the entity', description: 'Treat the empty table as a dead feature, as Entity1 was.' },
+    { label: 'Seed a synthetic row on CmsTest', description: 'Write a round-trip fixture so the mapping is read at least once.' }] }] } }]);
+  ex.push(JSON.stringify({ type: 'user', uuid: 'r' + id++, timestamp: at(12), toolUseResult: { answers: { 'MedCertTreatment is empty in WC_Cms and every test database. How should I treat it?': 'Leave it migrated, flag the caveat (Recommended)' } }, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't5', content: 'Your questions have been answered: "MedCertTreatment is empty in WC_Cms and every test database. How should I treat it?"="Leave it migrated, flag the caveat (Recommended)". You can now continue with these answers in mind.' }] } }));
+  a(12, [{ type: 'tool_use', id: 't6', name: 'PowerShell', input: { command: 'vstest.console.exe CmsIntegrationTests.dll' } }]);
+  r(21, 't6', Array.from({ length: 120 }, (_, k) => '  Passed ' + ['LoadsTheSeededRows', 'RoundTripsTheRow', 'MapsEveryColumn', 'LeavesDeletedRowsOut'][k % 4] + '_' + (k + 1) + ' [' + (20 + (k * 37) % 400) + ' ms]').join('\n') + '\n\nTest Run Successful.\nTotal tests: 1447\n     Passed: 1352\n    Skipped: 95');
+  const p = makeParser(); ex.forEach((l) => p.line(l));
+  loadStars();
+  setData(p.out, 'Example session. Open a .jsonl to replay yours.', true);
+  showRecentButton();
+  startWithServer();
+})();
+</script>

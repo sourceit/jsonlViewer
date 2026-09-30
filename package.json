@@ -1,0 +1,11 @@
+{
+  "name": "jsonl-viewer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Replay Claude Code session transcripts (.jsonl) in the browser.",
+  "main": "server.js",
+  "bin": { "jsonl-viewer": "server.js" },
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "license": "UNLICENSED"
+}
