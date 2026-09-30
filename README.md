@@ -2,6 +2,8 @@
 
 Replays Claude Code session transcripts (the `.jsonl` files under `~/.claude/projects`) turn by turn: prompts, replies, tool calls and results, thinking, compactions, and questions asked with AskUserQuestion drawn the way the terminal showed them.
 
+![JsonlViewer replaying the Claude Code session that built its bookmarks: the tagged turn list on the left, and turn 1 on the right with the prompt and the first commands Claude ran](docs/screenshot.png)
+
 ## Run it
 
 Double-click `JsonlViewer.cmd`, or:
