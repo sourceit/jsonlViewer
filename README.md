@@ -2,11 +2,15 @@
 
 Replays Claude Code session transcripts (the `.jsonl` files under `~/.claude/projects`) turn by turn: prompts, replies, tool calls and results, thinking, compactions, and questions asked with AskUserQuestion drawn the way the terminal showed them.
 
+**[Open JsonlViewer in your browser →](https://sourceit.github.io/jsonlViewer/)** Nothing to install or sign in to; your transcript never leaves your computer.
+
 ![JsonlViewer replaying the Claude Code session that built its bookmarks: the tagged turn list on the left, and turn 1 on the right with the prompt and the first commands Claude ran](docs/screenshot.png)
 
 ## Use it online
 
-Open **https://sourceit.github.io/jsonlViewer/** and pick or drop a transcript. Your transcripts are in `%USERPROFILE%\.claude\projects` on Windows and `~/.claude/projects` on macOS and Linux. The file is read in your browser and never uploaded, and there is nothing to sign in to.
+Open **[sourceit.github.io/jsonlViewer](https://sourceit.github.io/jsonlViewer/)** and pick or drop a transcript. Your transcripts are in `%USERPROFILE%\.claude\projects` on Windows and `~/.claude/projects` on macOS and Linux. The file is read in your browser and never uploaded, and there is nothing to sign in to.
+
+It opens on a sample: the Claude Code session that built the bookmarks, Recent and this website, with personal details removed.
 
 Online, stars, bookmarks and the Recent list are kept in your browser; Recent can reopen a local file in Chrome and Edge. **Sessions**, **Copy path** and bookmarks saved to a file need the local server below.
 
@@ -52,6 +56,7 @@ The server listens on 127.0.0.1 only and reads nothing outside the projects fold
 | `bookmarks.json` | stars and bookmarks, created on the first one |
 | `JsonlViewer.cmd` | Windows launcher |
 | `public/index.html` | the viewer |
+| `public/sample.jsonl` | the session the page opens on, a cleaned one-off snapshot |
 | `public/vendor/` | marked 12.0.2 and DOMPurify 3.1.6 with their licences, so it runs offline |
 | `.github/workflows/pages.yml` | publishes `public/` to GitHub Pages on each push to `main` that changes it |
 

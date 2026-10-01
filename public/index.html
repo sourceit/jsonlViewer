@@ -554,13 +554,16 @@ button, select, input { font: inherit; color: inherit; }
   async function loadFile(file, handle) {
     current = null; setHash(''); setPath('');
     // Keyed by name alone, as a session opened from the list is: a live transcript grows, and its size with it.
-    await loadStream(file.stream(), file.size, file.name, file.name, file.name + '  (' + mb(file.size) + ')');
+    if (!(await loadStream(file.stream(), file.size, file.name, file.name, file.name + '  (' + mb(file.size) + ')'))) return;
     let h = null; try { h = await handle; } catch (e) {}
     if (h && h.kind === 'file') addRecent({ kind: 'file', handle: h, name: file.name, size: file.size });
   }
   const mb = (n) => (n >= 1048576 ? (n / 1048576).toFixed(0) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
-  async function loadStream(stream, size, name, key, label) {
+  // Returns false when a newer load took over part way, so callers do not record a file nobody is looking at.
+  let loadGen = 0;
+  async function loadStream(stream, size, name, key, label, isSample) {
     stop();
+    const gen = ++loadGen;
     $('src').textContent = 'Reading ' + name + '...';
     const bar = $('progress'); bar.hidden = false; const fill = bar.firstElementChild;
     const parser = makeParser();
@@ -574,15 +577,27 @@ button, select, input { font: inherit; color: inherit; }
       const chunk = rest + dec.decode(value, { stream: true });
       const lines = chunk.split('\n'); rest = lines.pop();
       for (const l of lines) parser.line(l);
-      fill.style.width = (100 * done / Math.max(1, size)).toFixed(1) + '%';
+      // A compressed response's length is smaller than what it unpacks to, so the bar stops at full.
+      fill.style.width = Math.min(100, 100 * done / Math.max(1, size)).toFixed(1) + '%';
       await new Promise((r) => setTimeout(r, 0));
+      if (gen !== loadGen) { reader.cancel().catch(() => {}); return false; }
     }
     parser.line(rest + dec.decode());
     bar.hidden = true;
     parser.out.sort((a, b) => (a.ts && b.ts ? (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0) : 0));
     fileKey = key; loadStars();
-    setData(parser.out, label, false);
+    setData(parser.out, label, !!isSample);
     syncBookmarks();
+    return true;
+  }
+  // The sample is a real session (the one that built the bookmarks), cleaned of personal details and kept
+  // beside the page. Opened from disk the fetch fails, and the small built-in example below stays.
+  async function loadSample() {
+    if (loopback && /^#s=/.test(location.hash)) return; // a session from the list is about to open
+    let r; try { r = await fetch('sample.jsonl'); } catch (e) { return; }
+    if (!r.ok || !r.body || loadGen) return; // missing, or the visitor opened a file meanwhile
+    await loadStream(r.body, Number(r.headers.get('Content-Length')) || 0, 'the sample session', 'sample',
+      'Sample: the Claude Code session that built this viewer. Open a .jsonl to replay yours.', true);
   }
 
   // ---------- sessions from the local server ----------
@@ -647,7 +662,7 @@ button, select, input { font: inherit; color: inherit; }
     current = k; setHash('s=' + encodeURIComponent(k));
     setPath(sessionsRoot ? [sessionsRoot, s.project, s.file].join(sessionsRoot.includes('\\') ? '\\' : '/') : '');
     const size = Number(r.headers.get('Content-Length')) || s.size;
-    await loadStream(r.body, size, s.file, s.file, whereOf(s) + '  ·  ' + fmtDate(s.modified) + '  (' + mb(size) + ')');
+    if (!(await loadStream(r.body, size, s.file, s.file, whereOf(s) + '  ·  ' + fmtDate(s.modified) + '  (' + mb(size) + ')'))) return;
     addRecent({ kind: 'session', project: s.project, file: s.file, name: s.file, where: whereOf(s), size });
   }
 
@@ -788,7 +803,7 @@ button, select, input { font: inherit; color: inherit; }
     const days = new Set(events.filter((e) => e.ts).map((e) => e.ts.slice(0, 10))).size;
     const compactions = events.filter((e) => e.kind === 'marker' && e.name === 'Context compacted').length;
     const chips = [
-      isExample ? '<span class="chip example">Example data</span>' : '',
+      isExample ? '<span class="chip example">Sample</span>' : '',
       `<span class="chip"><b>${prompts.toLocaleString()}</b> prompts</span>`,
       `<span class="chip"><b>${turns.length.toLocaleString()}</b> turns</span>`,
       `<span class="chip"><b>${count('tool').toLocaleString()}</b> tool calls</span>`,
@@ -1075,6 +1090,7 @@ button, select, input { font: inherit; color: inherit; }
   loadStars();
   setData(p.out, 'Example session. Open a .jsonl to replay yours.', true);
   showRecentButton();
-  startWithServer();
+  // The sample first, so the session list (served locally) cannot open a transcript underneath it.
+  loadSample().finally(startWithServer);
 })();
 </script>
