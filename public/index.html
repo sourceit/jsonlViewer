@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JsonlViewer</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -60,6 +61,9 @@ button, select, input { font: inherit; color: inherit; }
 .brand .copy { font-size: 12px; padding: 2px 8px; color: var(--ink-2); white-space: nowrap; }
 .brand .copy.done { color: var(--ok); border-color: var(--ok); }
 .load { display: flex; gap: 8px; align-items: center; margin-left: auto; flex-wrap: wrap; }
+/* Without the local server: where the transcripts are, and that nothing is uploaded */
+.where { flex-basis: 100%; margin: -4px 0 0; font-size: 13px; color: var(--ink-3); }
+.where code { font: 12.5px var(--mono); color: var(--ink-2); background: var(--panel-2); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
 .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
 .btn:hover { border-color: var(--ink-3); }
 .btn.primary { background: var(--user); border-color: var(--user); color: #fff; }
@@ -259,6 +263,7 @@ button, select, input { font: inherit; color: inherit; }
       <button class="btn" id="recentBtn" hidden>Recent</button>
       <button class="btn" id="pick">Open a .jsonl file</button>
     </div>
+    <p class="where" id="where" hidden></p>
   </header>
 
   <section class="controls" aria-label="Playback">
@@ -743,9 +748,22 @@ button, select, input { font: inherit; color: inherit; }
     const s = sessionList.find((x) => sessKey(x) === b.dataset.key); if (!s) return;
     $('picker').close(); openSession(s);
   };
+  // Without the server (a hosted copy, or the page opened from disk) the visitor has to find their own
+  // transcripts, in a folder most file dialogs hide.
+  function showWhere() {
+    const p = String((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '');
+    const win = /win/i.test(p), mac = /mac/i.test(p);
+    const dir = win ? '%USERPROFILE%\\.claude\\projects' : '~/.claude/projects';
+    const hidden = mac ? ' (the folder is hidden; press &#8984;&#8679;. in the file dialog to show it)' : '';
+    $('where').innerHTML = 'Your Claude Code transcripts are in <code>' + esc(dir) + '</code>' + hidden + '. The file is read in your browser and never uploaded.';
+    $('where').hidden = false;
+    $('pick').title = 'Transcripts are in ' + dir;
+  }
+  // server.js only ever listens on the loopback address, so a page served from anywhere else has no server to ask.
+  const loopback = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
   async function startWithServer() {
-    if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
-    try { await fetchSessions(); } catch (e) { return; }
+    if (!loopback || (location.protocol !== 'http:' && location.protocol !== 'https:')) { showWhere(); return; }
+    try { await fetchSessions(); } catch (e) { showWhere(); return; }
     $('browse').hidden = false; serverBookmarks = true;
     const m = /^#s=(.+)$/.exec(location.hash);
     const wanted = m ? decodeURIComponent(m[1]) : null;

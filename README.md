@@ -4,7 +4,13 @@ Replays Claude Code session transcripts (the `.jsonl` files under `~/.claude/pro
 
 ![JsonlViewer replaying the Claude Code session that built its bookmarks: the tagged turn list on the left, and turn 1 on the right with the prompt and the first commands Claude ran](docs/screenshot.png)
 
-## Run it
+## Use it online
+
+Open **https://sourceit.github.io/jsonlViewer/** and pick or drop a transcript. Your transcripts are in `%USERPROFILE%\.claude\projects` on Windows and `~/.claude/projects` on macOS and Linux. The file is read in your browser and never uploaded, and there is nothing to sign in to.
+
+Online, stars, bookmarks and the Recent list are kept in your browser; Recent can reopen a local file in Chrome and Edge. **Sessions**, **Copy path** and bookmarks saved to a file need the local server below.
+
+## Run it locally
 
 Double-click `JsonlViewer.cmd`, or:
 
@@ -47,5 +53,6 @@ The server listens on 127.0.0.1 only and reads nothing outside the projects fold
 | `JsonlViewer.cmd` | Windows launcher |
 | `public/index.html` | the viewer |
 | `public/vendor/` | marked 12.0.2 and DOMPurify 3.1.6 with their licences, so it runs offline |
+| `.github/workflows/pages.yml` | publishes `public/` to GitHub Pages on each push to `main` that changes it |
 
 The page's fonts (IBM Plex) come from Google Fonts; offline it falls back to Segoe UI and Consolas.
