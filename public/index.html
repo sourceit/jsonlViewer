@@ -57,6 +57,8 @@ button, select, input { font: inherit; color: inherit; }
 .brand { display: flex; align-items: baseline; gap: 10px; }
 .brand h1 { font-size: 22px; letter-spacing: 0.01em; }
 .brand .src { color: var(--ink-3); font-size: 13px; overflow-wrap: anywhere; }
+.brand .copy { font-size: 12px; padding: 2px 8px; color: var(--ink-2); white-space: nowrap; }
+.brand .copy.done { color: var(--ok); border-color: var(--ok); }
 .load { display: flex; gap: 8px; align-items: center; margin-left: auto; flex-wrap: wrap; }
 .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
 .btn:hover { border-color: var(--ink-3); }
@@ -248,6 +250,7 @@ button, select, input { font: inherit; color: inherit; }
     <div class="brand">
       <h1>JsonlViewer</h1>
       <span class="src" id="src">Example session</span>
+      <button class="btn copy" id="copyPath" hidden>Copy path</button>
     </div>
     <div class="stats" id="stats"></div>
     <div class="load">
@@ -544,7 +547,7 @@ button, select, input { font: inherit; color: inherit; }
   // ---------- loading ----------
   // `handle` (a FileSystemFileHandle, or a promise of one) lets the file be reopened from Recent.
   async function loadFile(file, handle) {
-    current = null; setHash('');
+    current = null; setHash(''); setPath('');
     // Keyed by name alone, as a session opened from the list is: a live transcript grows, and its size with it.
     await loadStream(file.stream(), file.size, file.name, file.name, file.name + '  (' + mb(file.size) + ')');
     let h = null; try { h = await handle; } catch (e) {}
@@ -581,6 +584,27 @@ button, select, input { font: inherit; color: inherit; }
   // Served by server.js, the page lists ~/.claude/projects itself; opened as a plain file it cannot,
   // and the Sessions button stays hidden.
   let sessionList = [], current = null;
+  // The open transcript's full path, for Copy path. Only a session from the list has one: the server reports
+  // its projects folder, while a picked or dropped file comes with its name alone.
+  let sessionsRoot = '', currentPath = '', copiedTimer = null;
+  function setPath(p) {
+    currentPath = p; const b = $('copyPath');
+    b.hidden = !p; b.title = p ? 'Copy ' + p : ''; b.textContent = 'Copy path'; b.classList.remove('done');
+  }
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+    // Where the Clipboard API is refused, a selected textarea and the older copy command still work.
+    const t = document.createElement('textarea'); t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+    t.remove(); return ok;
+  }
+  $('copyPath').onclick = async () => {
+    if (!currentPath) return;
+    const b = $('copyPath'); const ok = await copyText(currentPath);
+    b.textContent = ok ? 'Copied' : 'Could not copy'; b.classList.toggle('done', ok);
+    clearTimeout(copiedTimer); copiedTimer = setTimeout(() => { b.textContent = 'Copy path'; b.classList.remove('done'); }, 1500);
+  };
   const sessKey = (s) => s.project + '/' + s.file;
   const whereOf = (s) => s.cwd || s.project;
   function setHash(v) { try { history.replaceState(null, '', v ? '#' + v : location.pathname + location.search); } catch (e) {} }
@@ -590,6 +614,7 @@ button, select, input { font: inherit; color: inherit; }
     const data = await r.json();
     sessionList = data.sessions || [];
     $('pickerRoot').textContent = data.root || '';
+    sessionsRoot = data.root || '';
     const sel = $('pickerProject'); const keep = sel.value;
     const wheres = [...new Set(sessionList.map(whereOf))].sort((a, b) => a.localeCompare(b));
     sel.innerHTML = '<option value="">All projects (' + sessionList.length + ')</option>' + wheres.map((w) => '<option value="' + esc(w) + '">' + esc(w) + ' (' + sessionList.filter((s) => whereOf(s) === w).length + ')</option>').join('');
@@ -615,6 +640,7 @@ button, select, input { font: inherit; color: inherit; }
     const r = await fetch('api/session?project=' + encodeURIComponent(s.project) + '&file=' + encodeURIComponent(s.file), { cache: 'no-store' });
     if (!r.ok || !r.body) { $('src').textContent = 'Could not open ' + s.file + ' (' + r.status + ')'; return; }
     current = k; setHash('s=' + encodeURIComponent(k));
+    setPath(sessionsRoot ? [sessionsRoot, s.project, s.file].join(sessionsRoot.includes('\\') ? '\\' : '/') : '');
     const size = Number(r.headers.get('Content-Length')) || s.size;
     await loadStream(r.body, size, s.file, s.file, whereOf(s) + '  ·  ' + fmtDate(s.modified) + '  (' + mb(size) + ')');
     addRecent({ kind: 'session', project: s.project, file: s.file, name: s.file, where: whereOf(s), size });

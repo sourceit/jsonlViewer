@@ -30,6 +30,7 @@ The server listens on 127.0.0.1 only and reads nothing outside the projects fold
 ## Using it
 
 - **Sessions** lists every transcript, newest first, with its first prompt, folder, branch, date, prompt count and size. Filter by text or by project.
+- **Copy path**, beside the transcript's name in the header, copies the full path of a session opened from **Sessions**. Browsers do not reveal where a picked or dropped file lives, so the button is hidden for those.
 - **Open a .jsonl file** uses the browser's own file dialog. **Recent** lists the last 15 transcripts you opened, whether picked, dropped on the page or chosen from Sessions, and reopens any of them with one click. The first time you reopen a picked file in a browser session, the browser asks to allow reading it. Reopening a local file needs Chrome or Edge; other browsers use a plain file input, and Recent then keeps only sessions from the list. The list is kept in the browser.
 - The left rail lists the turns. **Significant only** keeps the prompts that set a rule, a brief, a direction or a decision, plus the heavy turns; the star marks your own.
 - Bookmark any step with the star on its header, the star button in the controls, or B. **← Bookmark** and **Bookmark →** (or `[` and `]`) jump between bookmarked steps and starred turns. A turn holding bookmarks says so in the rail and counts as significant. Stars and bookmarks are saved per transcript in `bookmarks.json` beside the server, so they survive a new port or cleared browser data. Opened from disk, the page keeps them in the browser only.
